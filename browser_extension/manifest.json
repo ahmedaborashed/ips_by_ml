@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Browser IPS - Delta",
+  "version": "1.0",
+  "description": "Client-side IPS for SQLi, XSS, and Web Attacks",
+
+  "permissions": [
+    "tabs",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "declarativeNetRequestFeedback"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "minimum_chrome_version": "102"
+}

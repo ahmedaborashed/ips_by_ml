@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>تسجيل الدخول</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+      body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Cairo', sans-serif;
+    height: 100vh;
+    background: linear-gradient(135deg, rgba(75, 0, 130, 0.85), rgba(0, 0, 0, 0.9)),
+                url('/static/static/logo.png') no-repeat center center fixed;
+    background-size: contain;
+    background-position: center center; 
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    overflow: hidden;
+  }
+
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      width: 350px;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+      text-align: center;
+      animation: fadeIn 1.2s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      margin-bottom: 25px;
+      font-weight: 600;
+      font-size: 24px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      outline: none;
+      font-size: 16px;
+      text-align: center;
+    }
+
+    input:focus {
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #6a0dad;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #9b30ff;
+      box-shadow: 0 0 15px #9b30ff;
+    }
+
+    .error {
+      color: #ff8080;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    footer {
+      position: absolute;
+      bottom: 10px;
+      right: 15px;
+      font-size: 13px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>تسجيل الدخول</h2>
+    <form action="/login" method="POST">
+      <input type="text" name="username" placeholder="اسم المستخدم" required>
+      <input type="password" name="password" placeholder="كلمة المرور" required>
+      <button type="submit">دخول</button>
+    </form>
+    </div>
+
+  <footer>
+    Net Defenders team
+  </footer>
+
+</body>
+</html>

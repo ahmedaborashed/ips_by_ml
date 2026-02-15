@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Browser IPS Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  margin: 0;
+  background: linear-gradient(270deg,#4b0082,#7a1fa2,#8a2be2);
+  background-size: 600% 600%;
+  animation: bg 15s ease infinite;
+  font-family: Cairo, sans-serif;
+  color: #fff;
+  direction: rtl;
+}
+@keyframes bg {
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+.container {
+  width:95%;
+  max-width:1400px;
+  margin:30px auto;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter: blur(15px);
+  border-radius:20px;
+  padding:25px;
+  box-shadow:0 0 25px rgba(0,0,0,0.5);
+}
+h1 { text-align:center; margin-bottom:20px; }
+.stats {
+  display:flex;
+  justify-content:center;
+  gap:40px;
+  background:rgba(0,0,0,0.25);
+  padding:15px;
+  border-radius:15px;
+  margin-bottom:20px;
+}
+.stats span { color:#00ffcc; font-weight:bold; }
+canvas {
+  background:rgba(0,0,0,0.25);
+  padding:15px;
+  border-radius:15px;
+  margin-bottom:30px;
+}
+table { width:100%; border-collapse:collapse; margin-bottom:30px; }
+th,td {
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid rgba(255,255,255,0.15);
+}
+th { background:#8a2be2; }
+.safe { color:#00ff99; font-weight:bold; }
+
+.duration-input-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.duration-card {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 15px;
+  padding: 20px;
+  margin-top: 30px;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+}
+
+.duration-title {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.duration-inner-box {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  background: rgba(0,0,0,0.35);
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.duration-input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.9em;
+}
+
+.duration-input-group input {
+  width: 60px;
+  text-align: center;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid #9b30ff;
+  color: white;
+  border-radius: 6px;
+  padding: 5px;
+  margin-top: 5px;
+}
+
+.duration-current {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 0.9em;
+}
+
+.apply-btn {
+  display: block;
+  margin: 15px auto 0;
+  background: #007bff;
+  border: none;
+  padding: 6px 20px;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Browser Intrusion Prevention System 📊</h1>
+
+  <div class="stats">
+    <div>عدد المواقع المفتوحة: <span id="s_sites">0</span></div>
+    <div>عدد الهجمات: <span id="s_attacks">0</span></div>
+    <div>آخر تحديث: <span id="s_time">—</span></div>
+  </div>
+
+  <canvas id="attackChart" height="120"></canvas>
+
+  <h2>🌐 المواقع المفتوحة حاليًا</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>الموقع</th>
+        <th>IP</th>
+        <th>وقت الفتح</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody id="sitesTable"></tbody>
+  </table>
+
+  <h2>🚨 الهجمات المكتشفة</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>الموقع</th>
+        <th>Attack Log</th>
+        <th>IP</th>
+        <th>الوقت</th>
+        <th>التاريخ</th>
+      </tr>
+    </thead>
+    <tbody id="attacksTable"></tbody>
+  </table>
+  <div id="displayDurationControls" class="duration-card">
+  <p class="duration-title">⏱️ تحديد مدة العرض في الرسم البياني :</p>
+
+  <div class="duration-inner-box">
+    <div class="duration-input-group">
+      <span>ثانية</span>
+      <input type="number" id="chart_seconds" value="0">
+    </div>
+
+    <div class="duration-input-group">
+      <span>دقيقة</span>
+      <input type="number" id="chart_minutes" value="5">
+    </div>
+
+    <div class="duration-input-group">
+      <span>ساعة</span>
+      <input type="number" id="chart_hours" value="0">
+    </div>
+  </div>
+
+  <p class="duration-current">
+    المدة المعروضة حالياً:
+    <span id="currentDurationLabel">5 دقائق</span>
+  </p>
+
+  <button id="applyChartDurationBtn" class="apply-btn">
+    تطبيق العرض
+  </button>
+</div>
+</div>
+
+<script>
+let chartHistory = [];
+let maxDisplaySeconds = 300; // 5 دقائق افتراضي
+// ===== الرسم البياني =====
+const ctx = document.getElementById('attackChart').getContext('2d');
+const attackChart = new Chart(ctx,{
+  type:'line',
+  data:{ labels:[], datasets:[{ label:'Open Browser Tabs', data:[], fill:true, tension:0.4 }]},
+  options:{
+      responsive:true,
+      animation:false,
+      scales:{
+        y:{ beginAtZero:true },
+        x:{
+          display:true,
+          ticks:{
+            autoSkip:true,
+            maxRotation:0,
+            minRotation:0
+          }
+        }
+      }
+    }
+
+});
+
+const applyBtn = document.getElementById('applyChartDurationBtn');
+const durationLabel = document.getElementById('currentDurationLabel');
+
+function getDurationString(totalSeconds) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  let parts = [];
+  if (h > 0) parts.push(`${h} ساعة`);
+  if (m > 0) parts.push(`${m} دقيقة`);
+  if (s > 0 || parts.length === 0) parts.push(`${s} ثانية`);
+  return parts.join(' و ');
+}
+
+applyBtn.onclick = () => {
+  const hours = parseInt(document.getElementById('chart_hours').value) || 0;
+  const minutes = parseInt(document.getElementById('chart_minutes').value) || 0;
+  const seconds = parseInt(document.getElementById('chart_seconds').value) || 0;
+
+  const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+
+  if (totalSeconds <= 0) {
+    alert("⚠️ لازم المدة تكون أكبر من صفر");
+    return;
+  }
+
+  maxDisplaySeconds = totalSeconds;
+  durationLabel.textContent = getDurationString(totalSeconds);
+
+  refreshDashboard(); // تحديث فوري
+};
+
+// ===== المواقع الحقيقية =====
+async function loadOpenSites() {
+  const res = await fetch('/api/browser/open-sites');
+  const data = await res.json();
+
+  document.getElementById('s_sites').textContent = data.count;
+
+  const body = document.getElementById('sitesTable');
+  body.innerHTML = '';
+
+  data.sites.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.domain}</td>
+      <td>${s.ip}</td>
+      <td>${s.opened_time}</td>
+      <td class="safe">Safe</td>
+    `;
+    body.appendChild(tr);
+  });
+
+  return data.count; // 👈 مهم
+}
+
+// ===== تحديث الصفحة =====
+async function refreshDashboard() {
+  // ===== الهجمات =====
+  const res = await fetch('/api/browser-alerts');
+  const data = await res.json();
+  const attacks = data.alerts || [];
+
+  document.getElementById('s_attacks').textContent = attacks.length;
+  document.getElementById('s_time').textContent = new Date().toLocaleTimeString();
+
+  // ===== المواقع المفتوحة =====
+  const openCount = await loadOpenSites();
+
+  // ===== الرسم البياني (عدد التابات المفتوحة) =====
+  const now = new Date();
+
+  chartHistory.push({
+    time: now,
+    value: openCount,
+    label: now.toLocaleTimeString()
+  });
+  const cutoff = new Date(now.getTime() - maxDisplaySeconds * 1000);
+  chartHistory = chartHistory.filter(p => p.time >= cutoff);
+
+  attackChart.data.labels = chartHistory.map(p => p.label);
+  attackChart.data.datasets[0].data = chartHistory.map(p => p.value);
+  attackChart.update();
+
+  // ===== جدول الهجمات =====
+  const attackBody = document.getElementById('attacksTable');
+  attackBody.innerHTML = '';
+
+  attacks.forEach(a=>{
+  const t = a.time.split(' ');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+      <td style="font-size:12px; direction:ltr; text-align:left">
+        ${a.url || a.domain}
+      </td>
+      <td>${a.issue || a.action}</td>
+      <td>${a.ip}</td>
+      <td>${t[1]}</td>
+      <td>${t[0]}</td>
+  `;
+  attackBody.appendChild(tr);
+});
+}
+
+setInterval(refreshDashboard,1000);
+refreshDashboard();
+</script>
+</body>
+</html>

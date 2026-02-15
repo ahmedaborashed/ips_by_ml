@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحليل بيانات الواجهات</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 50px;
+            background: linear-gradient(270deg, #4b0082, #7a1fa2, #8a2be2);
+            background-size: 600% 600%;
+            animation: gradientMove 15s ease infinite;
+            color: white;
+            font-family: 'Cairo', sans-serif;
+            overflow-x: hidden;
+            direction: rtl;
+        }
+        @keyframes gradientMove {
+            0% {background-position: 0% 50;}
+            50% {background-position: 100% 50;}
+            100% {background-position: 0% 50;}
+        }
+        .container {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            padding: 30px 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 25px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 95%;
+            max-width: 1400px;
+            margin-bottom: 50px;
+            animation: fadeIn 1s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        h1 {
+            margin-bottom: 25px;
+            font-size: 2.5em;
+            color: #fff;
+        }
+        h2 {
+            margin-top: 50px; 
+            color: #00ffcc;
+            font-size: 2em;
+            text-align: center;
+            border-bottom: 2px solid #00ffcc;
+            padding-bottom: 10px;
+        }
+        #metrics {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        #metrics span {
+            font-weight: bold;
+            color: #00ffcc;
+        }
+        #chartWrapper {
+            margin-bottom: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 15px;
+            overflow-x: auto;
+            max-width: 100%; 
+            box-sizing: border-box;
+        }
+        #networkChart {
+            min-width: 100%; 
+            width: 100%;
+            height: 200px !important;
+            max-height: 200px !important;
+        }
+        #alertsTable, #arpAlertsTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            font-size: 0.9em;
+        }
+        #alertsTable thead tr, #arpAlertsTable thead tr {
+            background: #8a2be2;
+            border-bottom: 2px solid #9b30ff;
+        }
+        #alertsTable th, #alertsTable td, #arpAlertsTable th, #arpAlertsTable td {
+            padding: 12px 10px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #alertsTable tbody tr:hover, #arpAlertsTable tbody tr:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .status-up { color: #00ffcc; font-weight: bold; }
+        .status-down { color: #ff8080; font-weight: bold; }
+        .status-blocked { background-color: #ff8080; color: #fff; padding: 3px 8px; border-radius: 5px; }
+        .severity-low { color: #ff4081; }
+        .severity-medium { color: #ffeb3b; }
+        .severity-high { color: #00ffcc; }
+        .score-good { 
+            color: #00ffcc;
+            font-weight: bold;
+        }
+        .score-bad { 
+            color: #ff4081;
+            font-weight: bold;
+        }
+        .score-neutral { 
+            color: #ffeb3b;
+            font-weight: bold;
+        }
+        .mac-recommended { color: #00ffcc; font-weight: bold; }
+        .mac-unknown { color: #ff4081; font-weight: bold; }
+        .action-btn {
+            background: #8a2be2;
+            border: none;
+            padding: 6px 12px;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 0.9em;
+            margin: 2px;
+        }
+        .action-btn:hover {
+            background: #9b30ff;
+            transform: scale(1.05);
+        }
+        .allow-btn { background-color: #007bff; }
+        .allow-btn:hover { background-color: #0056b3; }
+        .block-btn { background-color: #dc3545; }
+        .block-btn:hover { background-color: #bd2130; }
+        .inline-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+            padding: 25px;
+            width: 450px;
+            text-align: right;
+            z-index: 1000;
+            color: white;
+            display: none;
+        }
+        .close-inline {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            opacity: 0.8;
+        }
+        .inline-content h4 {
+            margin-top: 0;
+            font-size: 1.5em;
+            text-align: center;
+        }
+        .duration-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        .duration-btn {
+            width: 45%;
+            padding: 8px;
+            background: rgba(138, 43, 226, 0.7);
+            border: 1px solid #9b30ff;
+            margin: 0;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .duration-btn.selected {
+            background: #00ffcc;
+            color: #4b0082;
+            font-weight: bold;
+        }
+        #customFields {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            flex-wrap: wrap;
+        }
+        #customFields label {
+            font-size: 0.9em;
+            margin-right: 5px;
+        }
+        #customFields input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #9b30ff;
+            color: white;
+            text-align: center;
+            padding: 5px;
+            border-radius: 5px;
+            margin: 0 5px 10px 5px;
+            width: 50px;
+            box-sizing: border-box;
+        }
+        .duration-input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .time-range-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            text-align: right;
+        }
+        .time-input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .time-input-row label {
+            font-weight: bold;
+            font-size: 1em;
+            color: #00ffcc;
+            margin-left: 10px;
+        }
+        .time-input-row input[type="datetime-local"] {
+            flex-grow: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #9b30ff;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .buttons button {
+            width: 48%;
+            margin: 0;
+            padding: 10px;
+            font-size: 1em;
+        }
+        .cancel-btn {
+            background: #555;
+        }
+        .save-btn {
+            background: #8a2be2;
+        }
+        .action-buttons-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .action-buttons-group button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s, transform 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .action-buttons-group button:hover {
+            transform: translateY(-2px);
+        }
+        #exportCsvBtn {
+            background-color: #28a745;
+        }
+        #exportCsvBtn:hover {
+            background-color: #218838;
+        }
+        #exportChartPngBtn {
+            background-color: #007bff;
+        }
+        #exportChartPngBtn:hover {
+            background-color: #0056b3;
+        }
+        #interfaceListPopup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            padding: 25px;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            text-align: right;
+            z-index: 2000;
+            color: #4b0082;
+            display: none;
+        }
+        #interfaceListPopup h4 {
+            color: #8a2be2;
+            border-bottom: 2px solid #9b30ff;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        #interfaceListPopup ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #interfaceListPopup ul li {
+            background: #f0f0f0;
+            padding: 8px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+        }
+        .close-list-popup {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #dc3545;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            opacity: 0.9;
+            transition: 0.3s;
+        }
+        .close-list-popup:hover {
+            background: #c82333;
+            opacity: 1;
+        }
+        #displayDurationControls .duration-input-group input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #9b30ff;
+            color: white;
+            text-align: center;
+            padding: 5px;
+            border-radius: 5px;
+            margin: 0 5px 10px 5px;
+            width: 50px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>تحليل بيانات الواجهات</h1>
+        <div id="metrics">
+            <p>عدد الواجهات: <span id="m_flows">0</span></p>
+            <p>اسم الجهاز: <span id="m_hostname">جاري التحميل</span></p>
+            <p>الشبكة اللاسلكية (SSID): <span id="m_ssid">جاري التحميل</span></p>
+        </div>
+        <div class="action-buttons-group">
+            <button id="exportCsvBtn" onclick="showSaveDurationPopup('csv')">📊 حفظ بيانات الجدول CSV</button>
+            <button id="exportChartPngBtn" onclick="showSaveDurationPopup('png')">🖼️ حفظ الرسم البياني PNG</button>
+        </div>
+        <div id="chartWrapper">
+            <canvas id="networkChart" height="200"></canvas>
+        </div>
+        <table id="alertsTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Network</th>
+                    <th>IPv4</th>
+                    <th>IPv6</th>
+                    <th>التوصيات</th>
+                    <th>البروتوكول</th>
+                    <th>درجة الأمان</th>
+                    <th>المستخدمين</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h2>🚨 سجل تنبيهات ARP Spoofing</h2>
+        <table id="arpAlertsTable">
+            <thead>
+                <tr>
+                    <th>الوقت</th>
+                    <th>النوع</th>
+                    <th>IP المهاجَم</th>
+                    <th>MAC القديم</th>
+                    <th>MAC الجديد</th>
+                    <th>الإجراء المُتخذ</th>
+                    <th>المشغّل</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        </div>
+    <div id="inlinePopup" class="inline-popup" tabindex="-1" aria-hidden="true">
+        <div class="inline-content">
+            <button class="close-inline" onclick="closePopup()" aria-label="إغلاق">&times;</button>
+            <h4 id="popupTitle"></h4>
+            <div id="blockDurationControls">
+                <div class="duration-options">
+                    <button id="minute_btn" class="duration-btn" onclick="selectDuration('minute')">دقيقة</button>
+                    <button id="hour_btn" class="duration-btn" onclick="selectDuration('hour')">ساعة</button>
+                    <button id="day_btn" class="duration-btn" onclick="selectDuration('day')">يوم</button>
+                    <button id="permanent_btn" class="duration-btn" onclick="selectDuration('permanent')">دائم</button>
+                    <button id="custom_btn" class="duration-btn" onclick="selectDuration('custom')">مخصص</button>
+                </div>
+                <div id="customFields" style="display:none;">
+                    <div class="duration-input-group"><input type="number" id="block_days" placeholder="00" min="0" max="99" value="0" style="width: 40px;"> يوم</div>
+                    <div class="duration-input-group"><input type="number" id="block_hours" placeholder="00" min="0" max="23" value="0" style="width: 40px;"> ساعة</div>
+                    <div class="duration-input-group"><input type="number" id="block_minutes" placeholder="00" min="0" max="59" value="0" style="width: 40px;"> دقيقة</div>
+                </div>
+            </div>
+            <div id="saveDurationControls" style="display:none;">
+                <p style="text-align: right; margin-bottom: 15px;">حدد الفترة الزمنية للبيانات التي تريد حفظها:</p>
+                <div class="time-range-group">
+                    <div class="time-input-row">
+                        <label for="save_start_datetime">من (وقت البداية):</label>
+                        <input type="datetime-local" id="save_start_datetime" onchange="updateSaveStatus()">
+                    </div>
+                    <div class="time-input-row">
+                        <label for="save_end_datetime">إلى (وقت النهاية):</label>
+                        <input type="datetime-local" id="save_end_datetime" onchange="updateSaveStatus()">
+                    </div>
+                </div>
+                <p id="save_status_message" style="text-align: center; font-weight: bold; margin-bottom: 5px;"></p>
+                <p id="save_error_message" style="color: #ff4081; text-align: center; font-weight: bold; display: none;">
+                    ⚠️ يجب أن تكون البداية قبل النهاية وأن تكون الفترة ضمن البيانات المتاحة.
+                </p>
+            </div>
+            <div class="buttons">
+                <button id="popupSaveButton" class="save-btn" onclick="handlePopupSave()">حفظ</button>
+                <button class="cancel-btn" onclick="closePopup()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+    <div id="interfaceListPopup" tabindex="-1" aria-hidden="true">
+        <button class="close-list-popup" onclick="
+            document.getElementById('interfaceListPopup').style.display = 'none';
+            dataFetcherInterval = setInterval(refreshData, FETCH_TIME);
+        " aria-label="إغلاق">خروج</button>
+        <h4 id="interfaceListPopupTitle"></h4>
+        <ul id="activeInterfaceList"></ul>
+    </div>
+    <script>
+        let currentSecurityScores = {}; 
+        let scoreUpdateInterval; 
+        let dataFetcherInterval; 
+        const MAX_INCREMENT_FACTOR = 0.10;
+        const INCREMENT_TIME = 2000;
+        const FETCH_TIME = 2000; 
+        let interfaceSpeeds = {}; 
+        let lastActiveCount = null;
+        let lastActiveInterfaces = new Set();
+        async function getJSON(url) {
+            try {
+                const response = await fetch(url, { mode: 'cors' });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (e) {
+                console.error(`Error fetching ${url}:`, e);
+                return { network: { interfaces: [], hostname: 'خطأ في الاتصال', ssid: 'خطأ في الاتصال' }, alerts: [] };
+            }
+        }
+        async function postJSON(url, data) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(`HTTP error! status: ${response.status}. Detail: ${errorJson.detail}`);
+                    } catch {
+                        throw new Error(`HTTP error! status: ${response.status}. Response: ${errorText}`);
+                    }
+                }
+                return await response.json();
+            } catch (e) {
+                console.error(`Error posting to ${url}:`, e);
+                alert(`لم يتم العثور ع اذن الأدمن`);
+                return { status: "error" };
+            }
+        }
+        let historyData = []; 
+        let maxDisplaySeconds = 300; 
+        let interfaceToBlock = null;
+        let selectedDuration = null;
+        let popupMode = 'block';
+        let currentSsid = 'Unknown_SSID';
+        function getFormattedTime() {
+            const now = new Date();
+            const date = now.toLocaleDateString('en-CA').replace(/-/g, '_');
+            const time = now.toLocaleTimeString('en-US', { hour12: false }).replace(/:/g, '_');
+            return `${date}_${time}`;
+        }
+        function toDatetimeLocal(date) {
+            const y = date.getFullYear().toString();
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const d = date.getDate().toString().padStart(2, '0');
+            const h = date.getHours().toString().padStart(2, '0');
+            const min = date.getMinutes().toString().padStart(2, '0');
+            const s = date.getSeconds().toString().padStart(2, '0');
+            return `${y}-${m}-${d}T${h}:${min}:${s}`;
+        }
+        function getTimeFromDatetimeLocal(datetimeLocalValue) {
+            if (!datetimeLocalValue) return NaN;
+            const localDate = new Date(datetimeLocalValue);
+            if (isNaN(localDate.getTime())) {
+                const [datePart, timePart] = datetimeLocalValue.split('T');
+                const [year, month, day] = datePart.split('-').map(Number);
+                const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                const fallbackDate = new Date(year, month - 1, day, hours, minutes, seconds || 0); 
+                return fallbackDate.getTime();
+            }
+            return localDate.getTime();
+        }
+        function getHumanReadableTime(date) {
+            if (!date || isNaN(date.getTime())) return 'غير متوفر';
+            const h = date.getHours().toString().padStart(2, '0');
+            const m = date.getMinutes().toString().padStart(2, '0');
+            const s = date.getSeconds().toString().padStart(2, '0');
+            const d = date.getDate().toString().padStart(2, '0');
+            const mo = (date.getMonth() + 1).toString().padStart(2, '0');
+            return `${h}:${m}:${s} - ${d}/${mo}`;
+        }
+        function getDurationString(totalSeconds) {
+            if (totalSeconds === 0) return "Realtime";
+            const d = Math.floor(totalSeconds / 86400);
+            const h = Math.floor((totalSeconds % 86400) / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = Math.floor(totalSeconds % 60); 
+            let parts = [];
+            if (d > 0) parts.push(`${d} يوم`);
+            if (h > 0) parts.push(`${h} ساعة`);
+            if (m > 0) parts.push(`${m} دقيقة`);
+            if (s > 0 || parts.length === 0) parts.push(`${s} ثانية`);
+            return parts.join(' و ');
+        }
+        function getDurationStringForFileName(totalSeconds) {
+            if (totalSeconds === 0) return "Realtime";
+            const d = Math.floor(totalSeconds / 86400);
+            const h = Math.floor((totalSeconds % 86400) / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = Math.floor(totalSeconds % 60);
+            let parts = [];
+            if (d > 0) parts.push(`${d}D`);
+            if (h > 0) parts.push(`${h}H`);
+            if (m > 0) parts.push(`${m}M`);
+            if (s > 0 || parts.length === 0) parts.push(`${s}S`);
+            return parts.join('_');
+        }
+        function calculateTotalSecondsFromInputs(prefix) {
+            const days = parseInt(document.getElementById(`${prefix}_days`)?.value) || 0;
+            const hours = parseInt(document.getElementById(`${prefix}_hours`)?.value) || 0;
+            const minutes = parseInt(document.getElementById(`${prefix}_minutes`)?.value) || 0;
+            const secondsField = document.getElementById(`${prefix}_seconds`);
+            const seconds = secondsField ? (parseInt(secondsField.value) || 0) : 0;
+            return (days * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+        }
+        function closePopup() {
+            const popup = document.getElementById('inlinePopup');
+            if (popup) popup.style.display = 'none';
+            interfaceToBlock = null;
+            selectedDuration = null;
+            popupMode = 'block';
+            document.getElementById('blockDurationControls').style.display = 'block';
+            document.getElementById('saveDurationControls').style.display = 'none';
+            document.getElementById('customFields').style.display = 'none';
+            document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById('save_error_message').style.display = 'none';
+        }
+        function getMaxAvailableDuration() {
+            if (historyData.length < 2) return 0;
+            const firstTimestamp = historyData[0].time.getTime();
+            const lastTimestamp = historyData[historyData.length - 1].time.getTime();
+            const maxSeconds = Math.floor((lastTimestamp - firstTimestamp) / 1000);
+            return maxSeconds > 0 ? maxSeconds : 0;
+        }
+        function showBlockPopup(interfaceName) {
+            interfaceToBlock = interfaceName;
+            popupMode = 'block';
+            let popup = document.getElementById('inlinePopup');
+            if (!popup) return;
+            document.getElementById('popupTitle').textContent = `⚠ تحذير: حظر الواجهة - ${interfaceName}`;
+            document.getElementById('blockDurationControls').style.display = 'block';
+            document.getElementById('saveDurationControls').style.display = 'none';
+            document.getElementById('customFields').style.display = 'none';
+            document.getElementById('block_days').value = 0;
+            document.getElementById('block_hours').value = 0;
+            document.getElementById('block_minutes').value = 0;
+            selectedDuration = null; 
+            document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('selected'));
+            popup.style.display = 'block';
+        }
+        function selectDuration(duration) {
+            selectedDuration = duration;
+            const customFields = document.getElementById('customFields');
+            document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`${duration}_btn`)?.classList.add('selected');
+            if (duration === 'custom') {
+                customFields.style.display = 'flex';
+            } else {
+                customFields.style.display = 'none';
+            }
+        }
+        async function applyBlock() {
+            if (!interfaceToBlock || !selectedDuration) {
+                alert("الرجاء اختيار مدة الحظر!");
+                return;
+            }
+            let url = '';
+            const interfaceName = interfaceToBlock;
+            let totalMinutes = 0;
+            let durationMessage = ''; 
+            if (selectedDuration === 'custom') {
+                const days = parseInt(document.getElementById(`block_days`).value) || 0;
+                const hours = parseInt(document.getElementById(`block_hours`).value) || 0;
+                const minutes = parseInt(document.getElementById(`block_minutes`).value) || 0;
+                totalMinutes = (days * 1440) + (hours * 60) + minutes;
+                if (totalMinutes > 0) {
+                    url = `/api/block-custom/${interfaceName}/${totalMinutes}`;
+                    durationMessage = `لمدة مخصصة: ${getDurationString(totalMinutes * 60)}`;
+                } else {
+                    url = `/api/block/${interfaceName}/permanent`;
+                    durationMessage = `بشكل دائم.`;
+                }
+            } else {
+                url = `/api/block/${interfaceName}/${selectedDuration}`;
+                if (selectedDuration === 'minute') durationMessage = `لمدة دقيقة واحدة.`;
+                else if (selectedDuration === 'hour') durationMessage = `لمدة ساعة واحدة.`;
+                else if (selectedDuration === 'day') durationMessage = `لمدة يوم واحد.`;
+                else if (selectedDuration === 'permanent') durationMessage = `بشكل دائم.`;
+            }
+            const result = await postJSON(url, {});
+            if (result.status !== "error") {
+                closePopup();
+                currentSecurityScores[interfaceName] = 0.0; 
+                refreshData();
+            }
+        }
+        async function toggleBlock(interfaceName, block) {
+            const url = block ? `/api/block/${interfaceName}/permanent` : `/api/allow/${interfaceName}`;
+            const result = await postJSON(url, {});
+            if (result.status !== "error") {
+                if (!block) {
+                    currentSecurityScores[interfaceName] = 0.0;
+                }
+                refreshData();
+            }
+        }
+        function updateSaveStatus() {
+            const startInput = document.getElementById('save_start_datetime');
+            const endInput = document.getElementById('save_end_datetime');
+            const startValue = startInput.value;
+            const endValue = endInput.value;
+            const startTimestamp = getTimeFromDatetimeLocal(startValue);
+            const endTimestamp = getTimeFromDatetimeLocal(endValue);
+            const messageElement = document.getElementById('save_status_message');
+            const saveButton = document.getElementById('popupSaveButton');
+            saveButton.disabled = true;
+            if (historyData.length === 0) {
+                messageElement.innerHTML = '<span style="color: #ff4081;">⚠️ لا توجد بيانات مسجلة حالياً للحفظ.</span>';
+                return;
+            }
+            if (isNaN(startTimestamp) || isNaN(endTimestamp) || !startValue || !endValue) {
+                messageElement.innerHTML = '<span style="color: #ffeb3b;">الرجاء تحديد نطاق زمني كامل.</span>';
+                return;
+            }
+            if (startTimestamp >= endTimestamp) {
+                messageElement.innerHTML = '<span style="color: #ff4081;">⚠️ يجب أن يكون وقت البداية قبل وقت النهاية.</span>';
+                return;
+            }
+            const minAvailableTime = historyData[0].time.getTime();
+            const maxAvailableTime = historyData[historyData.length - 1].time.getTime();
+            const maxTimeThreshold = maxAvailableTime + 60000;
+            const minTimeThreshold = minAvailableTime - 60000;
+            if (startTimestamp < minTimeThreshold || endTimestamp > maxTimeThreshold) {
+                messageElement.innerHTML = `<span style="color: #ff4081;">⚠️ النطاق المطلوب خارج البيانات المتاحة.</span><br>
+                                            <span style="font-size: 0.8em;">المتاح من ${getHumanReadableTime(historyData[0].time)} إلى ${getHumanReadableTime(historyData[historyData.length - 1].time)}.</span>`;
+                return;
+            }
+            const durationSeconds = Math.floor((endTimestamp - startTimestamp) / 1000);
+            messageElement.innerHTML = `<span style="color: #00ffcc;">✅ النطاق صحيح ومتاح للحفظ.</span><br>
+                                        <span style="font-size: 0.8em;">المدة: ${getDurationString(durationSeconds)}</span>`;
+            saveButton.disabled = false;
+        }
+        function showSaveDurationPopup(mode) {
+            popupMode = mode;
+            let popup = document.getElementById('inlinePopup');
+            if (!popup) return;
+            document.getElementById('popupTitle').textContent = `حدد الفترة الزمنية لحفظ ${mode.toUpperCase()}`;
+            document.getElementById('blockDurationControls').style.display = 'none';
+            document.getElementById('saveDurationControls').style.display = 'block';
+            const now = new Date();
+            const startInput = document.getElementById('save_start_datetime');
+            const endInput = document.getElementById('save_end_datetime');
+            if (historyData.length > 0) {
+                endInput.value = toDatetimeLocal(historyData[historyData.length - 1].time); 
+                startInput.value = toDatetimeLocal(historyData[0].time);
+            } else {
+                endInput.value = toDatetimeLocal(now);
+                startInput.value = toDatetimeLocal(new Date(now.getTime() - maxDisplaySeconds * 1000));
+            }
+            updateSaveStatus();
+            popup.style.display = 'block';
+        }
+        function handlePopupSave() {
+            if (popupMode === 'block') {
+                applyBlock();
+            } else if (popupMode === 'csv' || popupMode === 'png') {
+                const startValue = document.getElementById('save_start_datetime').value;
+                const endValue = document.getElementById('save_end_datetime').value;
+                const startTimestamp = getTimeFromDatetimeLocal(startValue);
+                const endTimestamp = getTimeFromDatetimeLocal(endValue);
+                const statusElement = document.getElementById('save_status_message');
+                if (isNaN(startTimestamp) || isNaN(endTimestamp) || startTimestamp >= endTimestamp || historyData.length === 0) {
+                    statusElement.style.color = '#ff4081';
+                    statusElement.textContent = '⚠️ فشل الحفظ: الرجاء مراجعة النطاق الزمني.';
+                    document.getElementById('popupSaveButton').disabled = true;
+                    return;
+                }
+                const minAvailableTime = historyData[0].time.getTime();
+                const maxAvailableTime = historyData[historyData.length - 1].time.getTime();
+                const maxTimeThreshold = maxAvailableTime + 60000;
+                const minTimeThreshold = minAvailableTime - 60000;
+                if (startTimestamp < minTimeThreshold || endTimestamp > maxTimeThreshold) {
+                    statusElement.style.color = '#ff4081';
+                    statusElement.textContent = '⚠️ فشل الحفظ: النطاق خارج البيانات المتاحة.';
+                    document.getElementById('popupSaveButton').disabled = true;
+                    return;
+                }
+                saveFileByTimeRange(startTimestamp, endTimestamp);
+                closePopup();
+            }
+        }
+        async function saveFileByTimeRange(startTimestamp, endTimestamp) {
+            const startTimeDate = new Date(startTimestamp);
+            const endTimeDate = new Date(endTimestamp);
+            const filenameTime = getFormattedTime(endTimeDate);
+            const totalSeconds = Math.floor((endTimestamp - startTimestamp) / 1000);
+            const durationString = getDurationStringForFileName(totalSeconds); 
+            const ssidCleaned = currentSsid.replace(/[^\w\s-]/g, '').replace(/ /g, '_'); 
+            const filteredData = historyData.filter(d => d.time.getTime() >= startTimestamp && d.time.getTime() <= endTimestamp);
+            let changeTag = '';
+            if (filteredData.length >= 2) {
+                const firstCount = filteredData[0].value;
+                const lastCount = filteredData[filteredData.length - 1].value;
+                let hasChanged = false;
+                for (let i = 1; i < filteredData.length; i++) {
+                    if (filteredData[i].value !== firstCount) {
+                        hasChanged = true;
+                        break;
+                    }
+                }
+                if (hasChanged) {
+                    if (lastCount > firstCount) changeTag = "_Interfaces_Increased";
+                    else if (lastCount < firstCount) changeTag = "_Interfaces_Decreased";
+                    else changeTag = "_Interfaces_Changed";
+                }
+            }
+            const filenameBase = `${ssidCleaned}_${filenameTime}_Range_${durationString}${changeTag}`;
+            if (popupMode === 'csv') {
+                exportTableToCSV(filteredData, filenameBase, startTimeDate, endTimeDate);
+            } else if (popupMode === 'png') {
+                await saveChartToPNG(filteredData, filenameBase);
+            }
+        }
+        function exportTableToCSV(filteredData, filenameBase, startTimeDate, endTimeDate) {
+            const table = document.getElementById('alertsTable');
+            if (!table) {
+                console.error("Table not found: alertsTable");
+                return;
+            }
+            const rows = table.querySelectorAll('tr');
+            let csv = [];
+            const headers = [];
+            table.querySelectorAll('thead th').forEach(th => {
+                if (th.textContent.trim() !== 'الإجراءات') {
+                    headers.push(`"${th.textContent.trim()}"`);
+                }
+            });
+            const endTimeHuman = getHumanReadableTime(endTimeDate);
+            const startTimeHuman = getHumanReadableTime(startTimeDate);
+            let metadataRow = [
+                `"Export_Start_Time_Range"`, `"${startTimeHuman}"`,
+                `"Export_End_Time_Range"`, `"${endTimeHuman}"`,
+                `"Total_Records_in_Range"`, `"${filteredData.length}"`
+            ];
+            csv.push(metadataRow.join(','));
+            csv.push(headers.join(','));
+            rows.forEach((row, rowIndex) => {
+                if (rowIndex === 0) return; 
+                const cols = row.querySelectorAll('td');
+                let rowData = [];
+                cols.forEach((col, colIndex) => {
+                    if (colIndex < cols.length - 1) {
+                        let text = col.textContent.trim().replace(/"/g, '""');
+                        rowData.push(`"${text}"`);
+                    }
+                });
+                if (rowData.length > 0) {
+                    csv.push(rowData.join(','));
+                }
+            });
+            const csvFile = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(csvFile);
+            link.download = `${filenameBase}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        async function saveChartToPNG(filteredData, filenameBase) {
+            const chartId = 'networkChart';
+            const chart = window[chartId];
+            if (!chart) {
+                console.error("Chart not found for saving.");
+                alert("لا يمكن العثور على الرسم البياني لحفظه.");
+                return;
+            }
+            const chartDataForSave = filteredData.map(d => ({
+                label: d.label,
+                value: d.value,
+                change: d.change
+            })); 
+            const originalLabels = chart.data.labels;
+            const originalData = chart.data.datasets[0].data;
+            const originalChangeData = chart.options.plugins.interfaceChangeAnnotator.changeData;
+            const originalWidth = chart.canvas.width;
+            chart.data.labels = chartDataForSave.map(d => d.label);
+            chart.data.datasets[0].data = chartDataForSave.map(d => d.value);
+            chart.options.plugins.interfaceChangeAnnotator.changeData = chartDataForSave.map(d => d.change);
+            const POINT_WIDTH = 25; 
+            const PADDING_WIDTH = 100;
+            const newSaveWidth = chartDataForSave.length * POINT_WIDTH + PADDING_WIDTH;
+            chart.canvas.style.width = `${newSaveWidth}px`;
+            chart.canvas.width = newSaveWidth;
+            chart.update(); 
+            await new Promise(resolve => setTimeout(resolve, 100)); 
+            const imageUrl = chart.toBase64Image('image/png', 1); 
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = `${filenameBase}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            chart.data.labels = originalLabels;
+            chart.data.datasets[0].data = originalData;
+            chart.options.plugins.interfaceChangeAnnotator.changeData = originalChangeData; 
+            chart.canvas.style.width = `${originalWidth}px`;
+            chart.canvas.width = originalWidth;
+            chart.update('none');
+        }
+        
+            function showInterfacesForPoint(event, elements) {
+            if (!elements || elements.length === 0) return;
+
+            if (typeof dataFetcherInterval !== "undefined") {
+                clearInterval(dataFetcherInterval);
+            }
+
+            requestAnimationFrame(() => {
+                try {
+                    const firstElement = elements[0];
+                    const dataIndex = firstElement.index;
+                    const chart = window.networkChart;
+                    const clickedLabel = chart.data.labels[dataIndex];
+                    const clickedValue = chart.data.datasets[0].data[dataIndex];
+
+                    const pointData = historyData.find(
+                        d => d.label === clickedLabel && d.value === clickedValue
+                    );
+
+                    if (!pointData || !pointData.interfaces) return;
+
+                    const allInterfaces = pointData.interfaces;
+                    const popup = document.getElementById("interfaceListPopup");
+                    const title = document.getElementById("interfaceListPopupTitle");
+                    const list = document.getElementById("activeInterfaceList");
+
+                    title.textContent = `الواجهات في: ${pointData.label}`;
+                    list.innerHTML = "";
+
+                    if (allInterfaces.length > 0) {
+                        allInterfaces.forEach(item => {
+                            const li = document.createElement("li");
+                            li.textContent = `${item.interface} (IPv4: ${item.ipv4 || "N/A"})`;
+
+                            if (item.is_blocked) li.style.color = "red";
+                            else if (item.is_up) li.style.color = "limegreen";
+                            else li.style.color = "gray";
+
+                            list.appendChild(li);
+                        });
+                    } else {
+                        const li = document.createElement("li");
+                        li.textContent = "لا توجد واجهات متاحة في هذا الوقت.";
+                        list.appendChild(li);
+                    }
+
+                    popup.style.display = "block";
+                    popup.style.opacity = "1";
+                    popup.style.transition = "none";
+                } catch (err) {
+                    console.error("❌ خطأ أثناء عرض الواجهات:", err);
+                } finally {
+                    setTimeout(() => {
+                        if (typeof dataFetcherInterval === "undefined" || !dataFetcherInterval) {
+                            dataFetcherInterval = setInterval(refreshData, FETCH_TIME);
+                        }
+                    }, 3000);
+                }
+            });
+        }
+
+        
+
+        async function refreshData() {
+            const url = '/api/network-info';
+            try {
+                const data = await getJSON(url);
+                currentSsid = data.network.ssid && data.network.ssid.trim() !== '' ? data.network.ssid.replace(/\s/g, '_') : 'Default_LAN';
+                document.getElementById('m_hostname').textContent = data.network.hostname || 'غير متوفر';
+                document.getElementById('m_ssid').textContent = data.network.ssid || 'الشبكة السلكية (Default_LAN)';
+                let allInterfacesData = data.network.interfaces; 
+                let currentActiveInterfaces = allInterfacesData.filter(item => item.is_up && !item.is_blocked).map(item => item.interface);
+                let activeCount = currentActiveInterfaces.length;
+                document.getElementById('m_flows').textContent = allInterfacesData.length || 0;
+                const now = new Date();
+                let changeDetails = null;
+                const currentActiveSet = new Set(currentActiveInterfaces);
+                const addedInterfaces = currentActiveInterfaces.filter(iface => !lastActiveInterfaces.has(iface));
+                const removedInterfaces = Array.from(lastActiveInterfaces).filter(iface => !currentActiveSet.has(iface));
+                if (addedInterfaces.length === 1 && removedInterfaces.length === 0) {
+                    changeDetails = { type: '+', name: addedInterfaces[0] }; 
+                } else if (removedInterfaces.length === 1 && addedInterfaces.length === 0) {
+                    changeDetails = { type: '-', name: removedInterfaces[0] }; 
+                } else if (addedInterfaces.length > 0 || removedInterfaces.length > 0) {
+                    changeDetails = { type: '*', name: '' };
+                }
+                lastActiveInterfaces = currentActiveSet;
+                lastActiveCount = activeCount;
+                historyData.push({
+                    time: now,
+                    label: now.toLocaleTimeString(), 
+                    value: activeCount,
+                    change: changeDetails, 
+                    interfaces: allInterfacesData 
+                });
+                const cutoff = new Date(now - maxDisplaySeconds * 1000);
+                if (historyData.length > 100) historyData = historyData.slice(-100);
+                if (historyData.length > 0 && historyData[0].time.getTime() < cutoff.getTime()) {
+                    const firstIndexToKeep = historyData.findIndex(d => d.time.getTime() >= cutoff.getTime());
+                    if (firstIndexToKeep !== -1) {
+                        historyData = historyData.slice(firstIndexToKeep);
+                    } else {
+                        historyData = [];
+                    }
+                }
+                const dataForDisplay = historyData;
+                const chartId = 'networkChart';
+                const chart = window[chartId];
+                if (chart) {
+                    const POINT_WIDTH = 25; 
+                    const PADDING_WIDTH = 100;
+                    const wrapper = document.getElementById('chartWrapper');
+                    const minWidth = wrapper ? wrapper.clientWidth : 400;
+                    const calculatedWidth = dataForDisplay.length * POINT_WIDTH + PADDING_WIDTH;
+                    const newWidth = Math.max(minWidth, calculatedWidth);
+                    chart.canvas.style.width = `${newWidth}px`;
+                    chart.canvas.width = newWidth;
+                    if (wrapper) {
+                        wrapper.scrollLeft = wrapper.scrollWidth;
+                    }
+                    chart.data.labels = dataForDisplay.map(d => d.label);
+                    chart.data.datasets[0].data = dataForDisplay.map(d => d.value);
+                    chart.options.scales.y.max = Math.max(activeCount + 1, 5);
+                    chart.options.plugins.interfaceChangeAnnotator.changeData = dataForDisplay.map(d => d.change);
+                    chart.update();
+                }
+                if (scoreUpdateInterval) {
+                    clearInterval(scoreUpdateInterval);
+                }
+                startScoreUpdater(allInterfacesData);
+            } catch (e) {
+                console.error("Error in refreshData:", e);
+            }
+            // 🌟 NEW: تحديث سجل التنبيهات مع كل تحديث بيانات الشبكة
+            refreshAlerts();
+        }
+        
+        // 🌟 NEW: وظيفة جلب وعرض تنبيهات ARP Spoofing
+        async function refreshAlerts() {
+            const url = '/api/get-alerts';
+            try {
+                const data = await getJSON(url);
+                const tbody = document.querySelector('#arpAlertsTable tbody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+
+                data.alerts.forEach(alert => {
+                    const tr = document.createElement('tr');
+                    let actionColor = '#ff0000'; // اللون الافتراضي للأخضر (AutoBlock)
+
+                    // المنطق المعدل لتحديد اللون بناءً على نص الإجراء
+                    if (alert.action && alert.action.includes('AutoBlockFailed')) {
+                        actionColor = '#ff4081'; // اللون الأحمر للفشل
+                    } else if (alert.action && alert.action.includes('AutoBlock')) {
+                        actionColor = '#00ffcc'; // اللون الأخضر للنجاح
+                    } else if (alert.action && alert.action.includes('Blocked')) {
+                        actionColor = '#ff4081'; // اللون الأحمر للحظر اليدوي/العام
+                    }
+                    
+                    tr.innerHTML = `
+                        <td>${alert.time || '-'}</td>
+                        <td>${alert.type || '-'}</td>
+                        <td>${alert.ip || '-'}</td>
+                        <td>${alert.old_mac || '-'}</td>
+                        <td>${alert.new_mac || '-'}</td>
+                        <td style="color: ${actionColor}; font-weight: bold;">${alert.action || '-'}</td>
+                        <td>${alert.operator || '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (e) {
+                console.error("Error in refreshAlerts:", e);
+            }
+        }
+        // 🌟 END NEW: وظيفة جلب وعرض تنبيهات ARP Spoofing
+        
+        function startScoreUpdater(interfacesData) {
+            interfacesData.forEach(item => {
+                interfaceSpeeds[item.interface] = item.ml_score || 0.0;
+                if (currentSecurityScores[item.interface] === undefined) {
+                    currentSecurityScores[item.interface] = 0.0; 
+                }
+            });
+            scoreUpdateInterval = setInterval(() => {
+                let scoresChanged = false;
+                interfacesData.forEach(item => {
+                    let currentScore = currentSecurityScores[item.interface];
+                    let liveSpeedFactor = interfaceSpeeds[item.interface] || 0.0;
+                    if (item.is_up && !item.is_blocked) {
+                        if (liveSpeedFactor === 0.0 && currentScore < 0.1) {
+                            liveSpeedFactor = 0.1; 
+                        }
+                        const incrementalIncrease = liveSpeedFactor * MAX_INCREMENT_FACTOR; 
+                        if (currentScore < liveSpeedFactor) {
+                            currentSecurityScores[item.interface] = Math.min(liveSpeedFactor, currentScore + incrementalIncrease);
+                            scoresChanged = true;
+                        } else if (currentScore > liveSpeedFactor) {
+                            currentSecurityScores[item.interface] = Math.max(liveSpeedFactor, currentScore - incrementalIncrease);
+                            scoresChanged = true;
+                        }
+                    } else {
+                        if (currentScore > 0.0) {
+                            currentSecurityScores[item.interface] = 0.0; 
+                            scoresChanged = true;
+                        }
+                    }
+                });
+                if (scoresChanged) {
+                    updateTableOnly(interfacesData); 
+                }
+            }, INCREMENT_TIME);
+            updateTableOnly(interfacesData);
+        }
+        function updateTableOnly(allInterfacesData) {
+            const tbody = document.querySelector('#alertsTable tbody');
+            if (!tbody) return;
+            const allInterfacesForTable = allInterfacesData; 
+            tbody.innerHTML = '';
+            allInterfacesForTable.forEach((item, index) => {
+                const number = index + 1;
+                const isBlocked = item.is_blocked;
+                const currentScore = currentSecurityScores[item.interface] || 0.0; 
+                const statusClass = item.is_up ? 'status-up' : 'status-down'; 
+                const severityClass = `severity-${(item.severity || 'Unknown').toLowerCase()}`;
+                const macStatusClass = item.mac_status === 'Recommended' ? 'mac-recommended' : 'mac-unknown';
+                const statusText = isBlocked ? 'محظور' : (item.is_up ? 'نشط' : 'غير نشط');
+                const actionButton = isBlocked
+                    ? `<button class="action-btn allow-btn" onclick="toggleBlock('${item.interface}', false)">إلغاء الحظر</button>`
+                    : `<button class="action-btn block-btn" onclick="showBlockPopup('${item.interface}')">حظر</button>`;
+                let mlScoreHtml = '-';
+                const percentage = Math.round(currentScore * 100); 
+                let scoreClass = 'score-neutral';
+                let icon = '';
+                if (percentage >= 70) { 
+                    scoreClass = 'score-good'; 
+                    icon = ' &nbsp; &#10003;'; 
+                } 
+                else if (percentage < 40) {
+                    scoreClass = 'score-bad'; 
+                    icon = ' &nbsp; &#9888;'; 
+                }
+                mlScoreHtml = `<span class="${scoreClass}">${percentage}%${icon}</span>`;
+                const tr = document.createElement('tr');
+                if (isBlocked) {
+                    tr.style.backgroundColor = 'rgba(255, 128, 128, 0.2)';
+                }
+                tr.innerHTML = `
+                    <td>${number}</td>
+                    <td>${item.interface || '-'}</td>
+                    <td>${item.ipv4 || '-'}</td>
+                    <td>${item.ipv6 || '-'}</td>
+                    <td class="${macStatusClass}">${item.mac_status || '-'}</td> 
+                    <td>${item.protocol || '-'}</td>
+                    <td>${mlScoreHtml}</td> 
+                    <td class="${severityClass}">${item.severity || '-'}</td>
+                    <td class="${isBlocked ? 'status-blocked' : statusClass}">${statusText}</td>
+                    <td>
+                        ${actionButton}
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+        }
+        const interfaceChangeAnnotator = {
+            id: 'interfaceChangeAnnotator',
+            changeData: [], 
+            afterDraw: (chart) => {
+                const { ctx, chartArea: { top, bottom, left, right, width, height }, scales: { x, y } } = chart;
+                ctx.save();
+                const dataSet = chart.getDatasetMeta(0);
+                const changeData = chart.options.plugins.interfaceChangeAnnotator.changeData;
+                if (dataSet.data.length === 0 || dataSet.data.length !== changeData.length) {
+                    ctx.restore();
+                    return;
+                }
+                ctx.font = '10px Cairo';
+                ctx.textAlign = 'center';
+                dataSet.data.forEach((point, index) => {
+                    const change = changeData[index];
+                    if (change && change.type && change.name) {
+                        let color = '#fff';
+                        let text = '';
+                        if (change.type === '+') {
+                            color = '#00ffcc';
+                            text = `+ ${change.name}`;
+                        } else if (change.type === '-') {
+                            color = '#ff4081';
+                            text = `- ${change.name}`;
+                        } else if (change.type === '*') {
+                            color = '#ffeb3b';
+                            text = `* ${change.name}`;
+                        }
+                        ctx.fillStyle = color;
+                        const xPos = point.x;
+                        const yPos = point.y - 15; 
+                        ctx.fillText(text, xPos, yPos);
+                    }
+                });
+                ctx.restore();
+            }
+        };
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartId = 'networkChart';
+            const ctx = document.getElementById(chartId)?.getContext('2d');
+            if (ctx) {
+                window[chartId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Active Interfaces (Unblocked)',
+                            data: [],
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 5,
+                            pointHoverRadius: 7 
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        onClick: showInterfacesForPoint,
+                        scales: {
+                            x: {
+                                title: { display: true, text: 'الوقت', color: '#000' },
+                                ticks: { 
+                                    color: '#000',
+                                    autoSkip: true, 
+                                    maxRotation: 0,
+                                    minRotation: 0
+                                }, 
+                                grid: { color: 'rgba(0, 0, 0, 0.2)' }
+                            },
+                            y: {
+                                title: { display: true, text: 'عدد الواجهات', color: '#000' },
+                                ticks: { color: '#000' },
+                                grid: { color: 'rgba(0, 0, 0, 0.2)' },
+                                beginAtZero: true, 
+                                min: 0,
+                                ticks: {
+                                    stepSize: 1,
+                                    color: '#000'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#000'
+                                }
+                            },
+                            tooltip: { 
+                                enabled: true,
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        return tooltipItems[0].label; 
+                                    }
+                                }
+                            },
+                            interfaceChangeAnnotator: {
+                                changeData: [] 
+                            }
+                        }
+                    },
+                    plugins: [interfaceChangeAnnotator] 
+                });
+            } else {
+                console.error("Canvas element not found");
+            }
+            const container = document.querySelector('.container');
+            const newControlsHTML = `
+                <div id="displayDurationControls" style="text-align: center; margin-top: 20px;">
+                    <label>⏱️ تحديد مدة العرض في الرسم البياني :</label>
+                    <div id="chartDurationFields" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px; background: rgba(0, 0, 0, 0.2); padding: 10px; border-radius: 10px;">
+                        <div class="duration-input-group"><input type="number" id="chart_hours" placeholder="00" min="0" value="0" style="width: 50px;"> ساعة</div>
+                        <div class="duration-input-group"><input type="number" id="chart_minutes" placeholder="00" min="0" value="5" style="width: 50px;"> دقيقة</div>
+                        <div class="duration-input-group"><input type="number" id="chart_seconds" placeholder="00" min="0" value="0" style="width: 50px;"> ثانية</div>
+                    </div>
+                    <p style="font-size: 0.9em; margin-top: 10px;">المدة المعروضة حالياً: <span id="currentDurationLabel">5 دقائق</span></p>
+                    <button id="applyChartDurationBtn" class="action-btn" style="background-color: #007bff; margin-top: 10px;">تطبيق العرض</button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', newControlsHTML);
+            const applyBtn = document.getElementById('applyChartDurationBtn');
+            const durationLabel = document.getElementById('currentDurationLabel');
+            function applyNewChartDuration() {
+                const hours = parseInt(document.getElementById('chart_hours').value) || 0;
+                const minutes = parseInt(document.getElementById('chart_minutes').value) || 0;
+                const seconds = parseInt(document.getElementById('chart_seconds').value) || 0;
+                const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+                if (totalSeconds <= 0) {
+                    alert("⚠️ يجب أن تكون المدة أكبر من صفر.");
+                    return;
+                }
+                maxDisplaySeconds = totalSeconds;
+                durationLabel.textContent = getDurationString(totalSeconds);
+                clearInterval(dataFetcherInterval);
+                dataFetcherInterval = setInterval(refreshData, FETCH_TIME);
+                refreshData();
+            }
+            applyBtn.onclick = applyNewChartDuration;
+            
+            // 🌟 NEW: إضافة تحديث التنبيهات كل 5 ثوانٍ
+            setInterval(refreshAlerts, 5000); 
+            
+            dataFetcherInterval = setInterval(refreshData, FETCH_TIME); 
+            document.getElementById('currentDurationLabel').textContent = getDurationString(maxDisplaySeconds);
+            refreshData();
+        });
+    </script>
+    <script> const mode = 'network'; </script>
+</body>
+</html>

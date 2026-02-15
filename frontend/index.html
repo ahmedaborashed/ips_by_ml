@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>اختيار نوع التحليل</title>
+
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #3a3d5c, #5f5aa2, #7b68ee);
+      background-size: 400% 400%;
+      animation: gradientMove 18s ease infinite;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      overflow: hidden;
+    }
+
+    @keyframes gradientMove {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(15px);
+      padding: 40px 60px;
+      border-radius: 20px;
+      box-shadow: 0 0 25px rgba(0,0,0,0.5);
+      text-align: center;
+      width: 420px;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    h1 {
+      margin-bottom: 25px;
+      font-size: 2em;
+      color: #fff;
+      letter-spacing: 0.4px;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      background: #6a5acd;
+      border: none;
+      padding: 14px;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+      font-size: 1.1em;
+      margin-top: 15px;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(255,255,255,0.2);
+    }
+
+    button:hover {
+      background: #7b68ee;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(123,104,238,0.5);
+    }
+
+    .team {
+      margin-top: 25px;
+      font-weight: bold;
+      font-size: 1.3em;
+      background: linear-gradient(90deg, #00ffcc, #66ccff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 10px #00ffcc;
+      animation: pulseGlow 2s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      0% { text-shadow: 0 0 10px #00ffcc, 0 0 20px #66ccff; }
+      100% { text-shadow: 0 0 25px #00ffff, 0 0 45px #66ccff; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Choose the type of analysis</h1>
+    <button onclick="window.location.href='network.html'">Network Data Analysis</button>
+    <button onclick="window.location.href='browser.html'">Browser data analysis</button>
+    <div class="team">🛡️ Net Defenders team</div>
+  </div>
+</body>
+</html>
