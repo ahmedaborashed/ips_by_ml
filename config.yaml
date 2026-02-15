@@ -1,0 +1,15 @@
+iface: "Ethernet"
+os: "windows"
+dry_run: false              
+block_mode: "netsh"
+auto_block: true        
+admin_password: "change_me"
+log_db: "alerts.db"
+whitelist_ips:
+  - "192.168.1.1"
+whitelist_macs:
+  - "aa:bb:cc:dd:ee:ff"
+arp_change_threshold: 3
+time_window_seconds: 60
+max_auto_blocks_per_minute: 6
+gateway_ip: "192.168.1.1"
